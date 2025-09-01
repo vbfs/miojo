@@ -1,27 +1,10 @@
 {
   "name": "miojo",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "miojo is a lightweight functional micro-framework for SPAs. It comes with the essential ingredients — router, state, template engine, and lifecycle hooks — so you can build apps instantly.",
   "license": "MIT",
   "main": "dist/miojo.umd.js",
-  "module": "dist/miojo.esm.js",
-  "browser": "dist/miojo.umd.js",
   "types": "dist/index.d.ts",
-
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/miojo.esm.js",
-      "require": "./dist/miojo.cjs.js",
-      "default": "./dist/miojo.esm.js"
-    },
-    "./browser": "./dist/miojo.umd.js",
-    "./esm": "./dist/miojo.esm.js",
-    "./cjs": "./dist/miojo.cjs.js",
-    "./umd": "./dist/miojo.umd.js",
-    "./package.json": "./package.json"
-  },
-
   "bin": {
     "miojo": "./bin/miojo.js",
     "create-miojo-app": "./bin/create-app.js"

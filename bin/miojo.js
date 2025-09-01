@@ -1,20 +1,13 @@
 #!/usr/bin/env node
 
-/**
- * miojo CLI Server
- * Executar via: npx miojo-server ou npx create-miojo-app
- */
-
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const url = require('url');
 
-// Configurações
 const DEFAULT_PORT = 3000;
 const DEFAULT_DIR = process.cwd();
 
-// MIME types
 const MIME_TYPES = {
     '.html': 'text/html',
     '.js': 'text/javascript',
@@ -35,7 +28,6 @@ const MIME_TYPES = {
     '.webm': 'video/webm'
 };
 
-// Cores para terminal
 const colors = {
     reset: '\x1b[0m',
     bright: '\x1b[1m',
@@ -48,18 +40,15 @@ const colors = {
     white: '\x1b[37m'
 };
 
-// Função para colorir texto
 const colorize = (color, text) => `${colors[color]}${text}${colors.reset}`;
 
-// Banner ASCII
 const banner = `
 ${colorize('cyan', '┌─────────────────────────────────────────────┐')}
 ${colorize('cyan', '│')}  ${colorize('bright', '🍜 miojo server cli')}              ${colorize('cyan', '│')}
-${colorize('cyan', '│')}  ${colorize('blue', 'your spa ready in 3 minutes')}                   ${colorize('cyan', '│')}
+${colorize('cyan', '│')}  ${colorize('blue', 'your spa ready in 3 minutes')}          ${colorize('cyan', '│')}
 ${colorize('cyan', '└─────────────────────────────────────────────┘')}
 `;
 
-// Parsear argumentos
 function parseArgs() {
     const args = process.argv.slice(2);
     const options = {
@@ -99,11 +88,9 @@ function parseArgs() {
                 options.create = args[++i] || 'miojo-app';
                 break;
             default:
-                // Se é um número, assumir que é porta
                 if (!isNaN(parseInt(arg))) {
                     options.port = parseInt(arg);
                 }
-                // Se é um path, assumir que é diretório
                 else if (fs.existsSync(arg)) {
                     options.dir = path.resolve(arg);
                 }
@@ -114,66 +101,61 @@ function parseArgs() {
     return options;
 }
 
-// Mostrar ajuda
 function showHelp() {
     console.log(`
 ${banner}
 
-${colorize('bright', 'USO:')}
-  ${colorize('green', 'npx miojo-server')}                    # Servidor na porta 3000
-  ${colorize('green', 'npx miojo-server 8080')}               # Servidor na porta 8080
-  ${colorize('green', 'npx miojo-server -p 3000 -o')}         # Servidor + abrir browser
-  ${colorize('green', 'npx miojo-server create meu-app')}     # Criar novo projeto
+${colorize('bright', 'usage:')}
+  ${colorize('green', 'npx miojo-server')}                    # server on port 3000
+  ${colorize('green', 'npx miojo-server 8080')}               # server on port 8080
+  ${colorize('green', 'npx miojo-server -p 3000 -o')}         # server + open browser
+  ${colorize('green', 'npx miojo-server create my-app')}      # create new project
 
-${colorize('bright', 'OPÇÕES:')}
-  ${colorize('yellow', '-p, --port <número>')}     Porta do servidor (padrão: 3000)
-  ${colorize('yellow', '-d, --dir <caminho>')}     Diretório a servir (padrão: atual)
-  ${colorize('yellow', '-o, --open')}              Abrir navegador automaticamente
-  ${colorize('yellow', '-h, --help')}              Mostrar esta ajuda
-  ${colorize('yellow', '-v, --version')}           Mostrar versão
-  ${colorize('yellow', 'create <nome>')}           Criar novo projeto miojo
+${colorize('bright', 'options:')}
+  ${colorize('yellow', '-p, --port <number>')}     server port (default: 3000)
+  ${colorize('yellow', '-d, --dir <path>')}        directory to serve (default: current)
+  ${colorize('yellow', '-o, --open')}              open browser automatically
+  ${colorize('yellow', '-h, --help')}              show this help
+  ${colorize('yellow', '-v, --version')}           show version
+  ${colorize('yellow', 'create <name>')}           create new miojo project
 
-${colorize('bright', 'EXEMPLOS:')}
+${colorize('bright', 'examples:')}
   ${colorize('green', 'npx miojo-server')}
   ${colorize('green', 'npx miojo-server 8080 --open')}
   ${colorize('green', 'npx miojo-server --port 3000 --dir ./dist')}
-  ${colorize('green', 'npx miojo-server create minha-spa')}
+  ${colorize('green', 'npx miojo-server create my-spa')}
 
-${colorize('bright', 'ATALHOS:')}
-  ${colorize('green', 'npx create-miojo-app meu-projeto')}    # Criar projeto
-  ${colorize('green', 'npx miojo')}                          # Servidor rápido
+${colorize('bright', 'shortcuts:')}
+  ${colorize('green', 'npx create-miojo-app my-project')}    # create project
+  ${colorize('green', 'npx miojo')}                         # quick server
 
-${colorize('cyan', '📚 Documentação:')} https://github.com/seu-usuario/miojo
+${colorize('cyan', '📚 Documentation:')} https://github.com/your-username/miojo
 `);
 }
 
-// Mostrar versão
 function showVersion() {
-  const v = process.env.npm_package_version || '0.0.0';
-  console.log(`🍜 miojo cli v${v}`);
+    const v = process.env.npm_package_version || '0.0.0';
+    console.log(`🍜 miojo cli v${v}`);
 }
 
-// Criar novo projeto
 function createProject(projectName) {
     const projectPath = path.join(process.cwd(), projectName);
 
-    console.log(`${colorize('cyan', '🚀 Criando projeto:')} ${colorize('bright', projectName)}`);
+    console.log(`${colorize('cyan', '🚀 Creating project:')} ${colorize('bright', projectName)}`);
 
     if (fs.existsSync(projectPath)) {
-        console.log(`${colorize('red', '❌ Erro:')} Diretório '${projectName}' já existe!`);
+        console.log(`${colorize('red', '❌ Error:')} Directory '${projectName}' already exists!`);
         process.exit(1);
     }
 
-    // Criar diretório
     fs.mkdirSync(projectPath, { recursive: true });
 
-    // Template index.html
     const indexHtml = `<!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${projectName} - miojo v2.0</title>
+    <title>${projectName} - miojo</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .fade-in { animation: fadeIn 0.5s ease-in; }
@@ -185,36 +167,32 @@ function createProject(projectName) {
 </head>
 <body class="bg-gray-100 min-h-screen">
     <div id="app"></div>
-    <script src="https://unpkg.com/miojo-v2@latest/dist/miojo.min.js"></script>
+    <script src="https://unpkg.com/miojo@latest/dist/miojo.min.js"></script>
     <script src="app.js"></script>
 </body>
 </html>`;
 
-    // Template app.js
-    const appJs = `// ${projectName} - miojo v2.0 App
-console.log('🔥 Iniciando ${projectName}...');
+    const appJs = `// ${projectName} - miojo app
+console.log('🔥 starting ${projectName}...');
 
-// Criar aplicação
-const app = Beni.createApp({ container: '#app' });
+const app = miojo.createApp({ container: '#app' });
 
-// Estados iniciais
 app.setState('appName', '${projectName}')
    .setState('count', 0);
 
-// Template principal
 const homeTemplate = \`
     <div class="fade-in min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
         <div class="container mx-auto px-6 py-16">
             <div class="text-center">
                 <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl mb-6 shadow-lg">
-                    <span class="text-2xl font-bold text-white">B</span>
+                    <span class="text-2xl font-bold text-white">🍜</span>
                 </div>
 
                 <h1 class="text-5xl font-bold text-gray-900 mb-4">{{ appName }}</h1>
-                <p class="text-xl text-gray-600 mb-8">Criado com miojo v2.0</p>
+                <p class="text-xl text-gray-600 mb-8">built with miojo</p>
 
                 <div class="bg-white rounded-2xl p-8 shadow-lg max-w-md mx-auto">
-                    <h2 class="text-2xl font-bold mb-4">Counter</h2>
+                    <h2 class="text-2xl font-bold mb-4">counter</h2>
                     <div class="text-6xl font-mono text-blue-600 mb-6">{{ count }}</div>
 
                     <div class="space-x-4">
@@ -228,32 +206,28 @@ const homeTemplate = \`
                 </div>
 
                 <div class="mt-8 text-gray-600">
-                    <p>✨ Edite <code class="bg-gray-200 px-2 py-1 rounded">app.js</code> e veja as mudanças!</p>
+                    <p>✨ edit <code class="bg-gray-200 px-2 py-1 rounded">app.js</code> and see changes!</p>
                 </div>
             </div>
         </div>
     </div>
 \`;
 
-// Funções do contador
 window.incrementCount = () => app.updateState('count', c => c + 1);
 window.decrementCount = () => app.updateState('count', c => c - 1);
 
-// Rota principal
 app.route('/', () => {
     app.bindState(['appName', 'count'], homeTemplate)();
 });
 
-// Inicializar app
 document.addEventListener('DOMContentLoaded', () => {
     app.init();
 });`;
 
-    // Template package.json
     const packageJson = `{
   "name": "${projectName}",
   "version": "1.0.0",
-  "description": "Aplicação criada com miojo v2.0",
+  "description": "app built with miojo",
   "main": "index.html",
   "scripts": {
     "dev": "npx miojo-server --open",
@@ -261,41 +235,38 @@ document.addEventListener('DOMContentLoaded', () => {
     "serve": "npx miojo-server 8080"
   },
   "keywords": ["miojo", "spa", "functional"],
-  "author": "Desenvolvedor",
+  "author": "developer",
   "license": "MIT"
 }`;
 
-    // Criar arquivos
     fs.writeFileSync(path.join(projectPath, 'index.html'), indexHtml);
     fs.writeFileSync(path.join(projectPath, 'app.js'), appJs);
     fs.writeFileSync(path.join(projectPath, 'package.json'), packageJson);
 
-    console.log(`${colorize('green', '✅ Projeto criado com sucesso!')}`);
+    console.log(`${colorize('green', '✅ project created successfully!')}`);
     console.log(`
-${colorize('bright', '📁 Próximos passos:')}
+${colorize('bright', '📁 next steps:')}
   ${colorize('cyan', `cd ${projectName}`)}
   ${colorize('cyan', 'npx miojo-server --open')}
 
-${colorize('bright', '🚀 Comandos disponíveis:')}
-  ${colorize('yellow', 'npm run dev')}     # Servidor + abrir browser
-  ${colorize('yellow', 'npm start')}       # Servidor padrão
-  ${colorize('yellow', 'npm run serve')}   # Servidor na porta 8080
+${colorize('bright', '🚀 available commands:')}
+  ${colorize('yellow', 'npm run dev')}     # server + open browser
+  ${colorize('yellow', 'npm start')}       # default server
+  ${colorize('yellow', 'npm run serve')}   # server on port 8080
 `);
 }
 
-// Abrir navegador
 function openBrowser(url) {
     const start = (process.platform === 'darwin' ? 'open' :
                   process.platform === 'win32' ? 'start' : 'xdg-open');
     require('child_process').exec(`${start} ${url}`, (err) => {
         if (err) {
-            console.log(`${colorize('yellow', '⚠️')} Não foi possível abrir o navegador automaticamente`);
-            console.log(`${colorize('cyan', '🔗 Acesse:')} ${colorize('bright', url)}`);
+            console.log(`${colorize('yellow', '⚠️')} could not open browser automatically`);
+            console.log(`${colorize('cyan', '🔗 access:')} ${colorize('bright', url)}`);
         }
     });
 }
 
-// Função principal do servidor
 function startServer(options) {
     console.log(banner);
 
@@ -306,11 +277,9 @@ function startServer(options) {
 
         let filePath = path.join(options.dir, pathname);
 
-        // Log da requisição
         const timestamp = new Date().toLocaleTimeString();
         console.log(`${colorize('cyan', `[${timestamp}]`)} ${colorize('white', request.method)} ${colorize('yellow', pathname)}`);
 
-        // Auto-detecção de arquivo
         fs.stat(filePath, (err, stats) => {
             if (err || !stats.isFile()) {
                 if (pathname.endsWith('/') || !path.extname(pathname)) {
@@ -326,11 +295,11 @@ function startServer(options) {
                     response.writeHead(404, { 'Content-Type': 'text/html' });
                     response.end(`
                         <html>
-                            <head><title>404 - Not Found</title></head>
+                            <head><title>404 - not found</title></head>
                             <body style="font-family: Arial, sans-serif; padding: 40px; text-align: center;">
-                                <h1>🔍 404 - Arquivo não encontrado</h1>
+                                <h1>🔍 404 - file not found</h1>
                                 <p><code>${pathname}</code></p>
-                                <a href="/">← Voltar para Home</a>
+                                <a href="/">← back to home</a>
                             </body>
                         </html>
                     `);
@@ -355,13 +324,13 @@ function startServer(options) {
     server.listen(options.port, () => {
         const url = `http://localhost:${options.port}`;
 
-        console.log(`${colorize('green', '✅ Servidor rodando!')}`);
-        console.log(`${colorize('cyan', '🌐 URL:')} ${colorize('bright', url)}`);
-        console.log(`${colorize('cyan', '📂 Diretório:')} ${colorize('white', options.dir)}`);
-        console.log(`${colorize('cyan', '⏰ Iniciado:')} ${colorize('white', new Date().toLocaleString())}`);
+        console.log(`${colorize('green', '✅ server running!')}`);
+        console.log(`${colorize('cyan', '🌐 url:')} ${colorize('bright', url)}`);
+        console.log(`${colorize('cyan', '📂 directory:')} ${colorize('white', options.dir)}`);
+        console.log(`${colorize('cyan', '⏰ started:')} ${colorize('white', new Date().toLocaleString())}`);
         console.log('');
-        console.log(`${colorize('yellow', '💡 Para parar:')} Ctrl+C`);
-        console.log(`${colorize('yellow', '📝 Para ajuda:')} npx miojo-server --help`);
+        console.log(`${colorize('yellow', '💡 to stop:')} ctrl+c`);
+        console.log(`${colorize('yellow', '📝 for help:')} npx miojo-server --help`);
         console.log('');
 
         if (options.open) {
@@ -369,28 +338,25 @@ function startServer(options) {
         }
     });
 
-    // Error handling
     server.on('error', (err) => {
         if (err.code === 'EADDRINUSE') {
-            console.error(`${colorize('red', '❌ Erro:')} Porta ${options.port} já está em uso!`);
-            console.log(`${colorize('yellow', '💡 Tente:')} npx miojo-server ${options.port + 1}`);
+            console.error(`${colorize('red', '❌ error:')} port ${options.port} already in use!`);
+            console.log(`${colorize('yellow', '💡 try:')} npx miojo-server ${options.port + 1}`);
         } else {
-            console.error(`${colorize('red', '❌ Erro do servidor:')}`, err);
+            console.error(`${colorize('red', '❌ server error:')}`, err);
         }
         process.exit(1);
     });
 
-    // Graceful shutdown
     process.on('SIGINT', () => {
-        console.log(`\n${colorize('yellow', '🛑 Parando servidor...')}`);
+        console.log(`\n${colorize('yellow', '🛑 stopping server...')}`);
         server.close(() => {
-            console.log(`${colorize('green', '✅ Servidor parado!')}`);
+            console.log(`${colorize('green', '✅ server stopped!')}`);
             process.exit(0);
         });
     });
 }
 
-// Main function
 function main() {
     const options = parseArgs();
 
@@ -412,7 +378,6 @@ function main() {
     startServer(options);
 }
 
-// Executar se for chamado diretamente
 if (require.main === module) {
     main();
 }
