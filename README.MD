@@ -2,7 +2,7 @@
 
 > your spa ready in 3 minutes
 
-a lightweight, functional JavaScript framework for building single-page applications with routing, state management, and templating - all in ~2.5kb.
+a lightweight, functional JavaScript framework for building single-page applications with routing, state management, and templating - all in ~4kb.
 
 ## features
 

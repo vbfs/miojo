@@ -1,15 +1,14 @@
 {
   "name": "miojo",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "miojo is a lightweight functional micro-framework for SPAs. It comes with the essential ingredients — router, state, template engine, and lifecycle hooks — so you can build apps instantly.",
   "license": "MIT",
-  "main": "dist/miojo.umd.js",
+  "main": "dist/miojo.min.js",
   "types": "dist/index.d.ts",
   "bin": {
     "miojo": "./bin/miojo.js",
     "create-miojo-app": "./bin/create-app.js"
   },
-
   "files": [
     "dist/",
     "bin/",
@@ -17,9 +16,8 @@
     "README.md",
     "LICENSE"
   ],
-
   "scripts": {
-    "build": "npm run build:all",
+    "build": "npx terser src/index.js -o dist/miojo.min.js -m -c && npm run types",
     "build:all": "npm run build:esm && npm run build:cjs && npm run build:umd && npm run types",
     "build:esm": "microbundle --name miojo --format es --output dist/miojo.esm.js --no-sourcemap",
     "build:cjs": "microbundle --name miojo --format cjs --output dist/miojo.cjs.js --no-sourcemap",
@@ -27,19 +25,36 @@
     "types": "tsc -p tsconfig.types.json --emitDeclarationOnly --declaration --outDir dist || echo \"(skip types)\"",
     "prepublishOnly": "npm run build"
   },
-
-  "keywords": ["spa", "functional", "ui", "framework", "server", "cli", "javascript", "reactive"],
+  "keywords": [
+    "spa",
+    "functional",
+    "ui",
+    "framework",
+    "server",
+    "cli",
+    "javascript",
+    "reactive"
+  ],
   "author": "Vinícius Barreto",
-  "repository": { "type": "git", "url": "https://github.com/vbfs/miojo.git" },
-  "bugs": { "url": "https://github.com/vbfs/miojo/issues" },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vbfs/miojo.git"
+  },
+  "bugs": {
+    "url": "https://github.com/vbfs/miojo/issues"
+  },
   "homepage": "https://github.com/vbfs/miojo#readme",
-
-  "engines": { "node": ">=14.0.0" },
+  "engines": {
+    "node": ">=14.0.0"
+  },
   "preferGlobal": false,
-  "publishConfig": { "access": "public" },
-
+  "publishConfig": {
+    "access": "public"
+  },
   "devDependencies": {
     "microbundle": "^0.15.1"
+  },
+  "dependencies": {
+    "terser": "^5.43.1"
   }
 }
-
