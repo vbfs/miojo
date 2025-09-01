@@ -3,8 +3,7 @@
   "version": "0.0.1",
   "description": "miojo is a lightweight functional micro-framework for SPAs. It comes with the essential ingredients — router, state, template engine, and lifecycle hooks — so you can build apps instantly.",
   "license": "MIT",
-
-  "main": "dist/miojo.cjs.js",
+  "main": "dist/miojo.umd.js",
   "module": "dist/miojo.esm.js",
   "browser": "dist/miojo.umd.js",
   "types": "dist/index.d.ts",
@@ -39,9 +38,9 @@
   "scripts": {
     "build": "npm run build:all",
     "build:all": "npm run build:esm && npm run build:cjs && npm run build:umd && npm run types",
-    "build:esm": "microbundle --name miojo --format es --output dist/miojo.esm.js",
-    "build:cjs": "microbundle --name miojo --format cjs --output dist/miojo.cjs.js",
-    "build:umd": "microbundle --name miojo --format umd --output dist/miojo.umd.js",
+    "build:esm": "microbundle --name miojo --format es --output dist/miojo.esm.js --no-sourcemap",
+    "build:cjs": "microbundle --name miojo --format cjs --output dist/miojo.cjs.js --no-sourcemap",
+    "build:umd": "microbundle --name miojo --format umd --output dist/miojo.umd.js --no-sourcemap",
     "types": "tsc -p tsconfig.types.json --emitDeclarationOnly --declaration --outDir dist || echo \"(skip types)\"",
     "prepublishOnly": "npm run build"
   },
@@ -56,7 +55,8 @@
   "preferGlobal": false,
   "publishConfig": { "access": "public" },
 
-  "dependencies": {
+  "devDependencies": {
     "microbundle": "^0.15.1"
   }
 }
+
