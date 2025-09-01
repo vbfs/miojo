@@ -1,0 +1,62 @@
+{
+  "name": "miojo",
+  "version": "0.0.1",
+  "description": "miojo is a lightweight functional micro-framework for SPAs. It comes with the essential ingredients — router, state, template engine, and lifecycle hooks — so you can build apps instantly.",
+  "license": "MIT",
+
+  "main": "dist/miojo.cjs.js",
+  "module": "dist/miojo.esm.js",
+  "browser": "dist/miojo.umd.js",
+  "types": "dist/index.d.ts",
+
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/miojo.esm.js",
+      "require": "./dist/miojo.cjs.js",
+      "default": "./dist/miojo.esm.js"
+    },
+    "./browser": "./dist/miojo.umd.js",
+    "./esm": "./dist/miojo.esm.js",
+    "./cjs": "./dist/miojo.cjs.js",
+    "./umd": "./dist/miojo.umd.js",
+    "./package.json": "./package.json"
+  },
+
+  "bin": {
+    "miojo": "./bin/miojo.js",
+    "create-miojo-app": "./bin/create-app.js"
+  },
+
+  "files": [
+    "dist/",
+    "bin/",
+    "templates/",
+    "README.md",
+    "LICENSE"
+  ],
+
+  "scripts": {
+    "build": "npm run build:all",
+    "build:all": "npm run build:esm && npm run build:cjs && npm run build:umd && npm run types",
+    "build:esm": "microbundle --name miojo --format es --output dist/miojo.esm.js",
+    "build:cjs": "microbundle --name miojo --format cjs --output dist/miojo.cjs.js",
+    "build:umd": "microbundle --name miojo --format umd --output dist/miojo.umd.js",
+    "types": "tsc -p tsconfig.types.json --emitDeclarationOnly --declaration --outDir dist || echo \"(skip types)\"",
+    "prepublishOnly": "npm run build"
+  },
+
+  "keywords": ["spa", "functional", "ui", "framework", "server", "cli", "javascript", "reactive"],
+  "author": "Vinícius Barreto",
+  "repository": { "type": "git", "url": "https://github.com/vbfs/miojo.git" },
+  "bugs": { "url": "https://github.com/vbfs/miojo/issues" },
+  "homepage": "https://github.com/vbfs/miojo#readme",
+
+  "engines": { "node": ">=14.0.0" },
+  "preferGlobal": false,
+  "publishConfig": { "access": "public" },
+
+  "dependencies": {
+    "microbundle": "^0.15.1"
+  }
+}
