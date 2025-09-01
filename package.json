@@ -17,11 +17,6 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "npx terser src/index.js -o dist/miojo.min.js -m -c && npm run types",
-    "build:all": "npm run build:esm && npm run build:cjs && npm run build:umd && npm run types",
-    "build:esm": "microbundle --name miojo --format es --output dist/miojo.esm.js --no-sourcemap",
-    "build:cjs": "microbundle --name miojo --format cjs --output dist/miojo.cjs.js --no-sourcemap",
-    "build:umd": "microbundle --name miojo --format umd --output dist/miojo.umd.js --no-sourcemap",
     "types": "tsc -p tsconfig.types.json --emitDeclarationOnly --declaration --outDir dist || echo \"(skip types)\"",
     "prepublishOnly": "npm run build"
   },
@@ -52,9 +47,6 @@
     "access": "public"
   },
   "devDependencies": {
-    "microbundle": "^0.15.1"
-  },
-  "dependencies": {
     "terser": "^5.43.1"
   }
 }
