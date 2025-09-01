@@ -17,6 +17,7 @@
     "LICENSE"
   ],
   "scripts": {
+    "build": "npx terser src/index.js -o dist/miojo.min.js -m -c && npm run types",
     "types": "tsc -p tsconfig.types.json --emitDeclarationOnly --declaration --outDir dist || echo \"(skip types)\"",
     "prepublishOnly": "npm run build"
   },
