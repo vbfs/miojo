@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security & XSS Protection - Miojo v0.0.6</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-red-50 min-h-screen p-8">
+    <div id="app"></div>
+    <script src="../dist/miojo.min.js"></script>
+    <script>
+        const app = miojo.createApp({ container: '#app' });
+
+        app.setState('userInput', '<script>alert("XSS Attack!")</script>')
+           .setState('comments', [])
+           .setState('displayMode', 'escaped');
+
+        const template = `
+            <div class="max-w-4xl mx-auto">
+                <!-- Warning Banner -->
+                <div class="bg-red-600 text-white rounded-lg p-4 mb-6 shadow-lg">
+                    <div class="flex items-center gap-3">
+                        <span class="text-3xl">🛡️</span>
+                        <div>
+                            <h1 class="text-2xl font-bold">XSS Protection Demo</h1>
+                            <p class="text-red-100">See how Miojo v0.0.6 automatically protects against XSS attacks</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Live XSS Test -->
+                <div class="bg-white rounded-lg shadow-xl p-6 mb-6">
+                    <h2 class="text-2xl font-bold mb-4 text-red-600">🔴 Live XSS Test</h2>
+
+                    <div class="mb-4">
+                        <label class="block font-semibold mb-2">Try injecting malicious code:</label>
+                        <textarea
+                            class="w-full px-4 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-red-500 focus:outline-none font-mono text-sm"
+                            rows="3"
+                            oninput="updateUserInput(event)"
+                        >{{ userInput }}</textarea>
+                        <p class="text-sm text-gray-600 mt-1">
+                            Try: &lt;script&gt;alert('XSS')&lt;/script&gt; or &lt;img src=x onerror="alert('XSS')"&gt;
+                        </p>
+                    </div>
+
+                    <div class="flex gap-2 mb-4">
+                        <button
+                            onclick="setDisplayMode('escaped')"
+                            class="px-4 py-2 rounded font-semibold {{ displayMode === 'escaped' ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700' }}"
+                        >
+                            ✅ Escaped (Secure - Default)
+                        </button>
+                        <button
+                            onclick="setDisplayMode('raw')"
+                            class="px-4 py-2 rounded font-semibold {{ displayMode === 'raw' ? 'bg-red-600 text-white' : 'bg-gray-200 text-gray-700' }}"
+                        >
+                            ⚠️ Raw (Dangerous)
+                        </button>
+                    </div>
+
+                    <!-- Escaped Output (Secure) -->
+                    {{#if displayMode === 'escaped'}}
+                        <div class="bg-green-50 border-2 border-green-500 rounded-lg p-4">
+                            <div class="flex items-start gap-3 mb-2">
+                                <span class="text-2xl">✅</span>
+                                <div>
+                                    <h3 class="font-bold text-green-800">Escaped Output (Secure)</h3>
+                                    <p class="text-sm text-green-700">Using double braces: {{ }}</p>
+                                </div>
+                            </div>
+                            <div class="bg-white rounded p-3 mt-2">
+                                <strong>Your input:</strong>
+                                <div class="mt-2 p-2 bg-gray-50 rounded break-all">
+                                    {{ userInput }}
+                                </div>
+                            </div>
+                            <p class="text-sm text-green-700 mt-3">
+                                ✓ HTML is automatically escaped! The script tags are rendered as text, not executed.
+                            </p>
+                        </div>
+                    {{/if}}
+
+                    <!-- Raw Output (Dangerous) -->
+                    {{#if displayMode === 'raw'}}
+                        <div class="bg-red-50 border-2 border-red-500 rounded-lg p-4">
+                            <div class="flex items-start gap-3 mb-2">
+                                <span class="text-2xl">⚠️</span>
+                                <div>
+                                    <h3 class="font-bold text-red-800">Raw Output (DANGEROUS - Demo Only)</h3>
+                                    <p class="text-sm text-red-700">Using triple braces: {{{ }}}</p>
+                                </div>
+                            </div>
+                            <div class="bg-white rounded p-3 mt-2">
+                                <strong>Your input (raw HTML):</strong>
+                                <div class="mt-2 p-2 bg-gray-50 rounded break-all">
+                                    {{{ userInput }}}
+                                </div>
+                            </div>
+                            <p class="text-sm text-red-700 mt-3">
+                                ⚠️ Only use triple braces {{{ }}} when you trust the content!
+                            </p>
+                        </div>
+                    {{/if}}
+                </div>
+
+                <!-- Comment System Demo -->
+                <div class="bg-white rounded-lg shadow-xl p-6 mb-6">
+                    <h2 class="text-2xl font-bold mb-4">💬 Secure Comment System</h2>
+
+                    <form onsubmit="addComment(event)" class="mb-4">
+                        <textarea
+                            id="commentInput"
+                            class="w-full px-4 py-2 border border-gray-300 rounded mb-2"
+                            rows="3"
+                            placeholder="Write a comment (try injecting scripts!)"
+                        ></textarea>
+                        <button
+                            type="submit"
+                            class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded font-semibold"
+                        >
+                            Post Comment
+                        </button>
+                    </form>
+
+                    <div class="space-y-3">
+                        {{#each comments}}
+                            <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                                <div class="flex items-start justify-between mb-2">
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-semibold">{{ this.author }}</span>
+                                        <span class="text-xs text-gray-500">{{ this.time }}</span>
+                                    </div>
+                                    <button
+                                        onclick="deleteComment({{ @index }})"
+                                        class="text-red-500 hover:text-red-700 text-sm"
+                                    >
+                                        Delete
+                                    </button>
+                                </div>
+                                <div class="text-gray-700">
+                                    {{ this.text }}
+                                </div>
+                                {{#if this.containsHTML}}
+                                    <div class="mt-2 text-xs text-green-600 bg-green-50 px-2 py-1 rounded inline-block">
+                                        ✓ HTML tags were automatically escaped!
+                                    </div>
+                                {{/if}}
+                            </div>
+                        {{/each}}
+
+                        {{#unless comments.length}}
+                            <p class="text-center text-gray-500 py-8">
+                                No comments yet. Be the first to comment!
+                            </p>
+                        {{/unless}}
+                    </div>
+                </div>
+
+                <!-- Attack Examples -->
+                <div class="bg-white rounded-lg shadow-xl p-6 mb-6">
+                    <h2 class="text-2xl font-bold mb-4">🎯 Common XSS Attack Examples</h2>
+                    <p class="text-gray-600 mb-4">Click to test these common XSS attacks (all are safely escaped):</p>
+
+                    <div class="grid gap-2">
+                        <button
+                            onclick="testAttack('&lt;script&gt;alert(\\'XSS\\')&lt;/script&gt;')"
+                            class="text-left px-4 py-3 bg-gray-100 hover:bg-gray-200 rounded border border-gray-300"
+                        >
+                            <code class="text-sm text-red-600">&lt;script&gt;alert('XSS')&lt;/script&gt;</code>
+                        </button>
+
+                        <button
+                            onclick="testAttack('&lt;img src=x onerror=\\'alert(1)\\'&gt;')"
+                            class="text-left px-4 py-3 bg-gray-100 hover:bg-gray-200 rounded border border-gray-300"
+                        >
+                            <code class="text-sm text-red-600">&lt;img src=x onerror='alert(1)'&gt;</code>
+                        </button>
+
+                        <button
+                            onclick="testAttack('&lt;svg onload=alert(1)&gt;')"
+                            class="text-left px-4 py-3 bg-gray-100 hover:bg-gray-200 rounded border border-gray-300"
+                        >
+                            <code class="text-sm text-red-600">&lt;svg onload=alert(1)&gt;</code>
+                        </button>
+
+                        <button
+                            onclick="testAttack('&lt;iframe src=javascript:alert(1)&gt;')"
+                            class="text-left px-4 py-3 bg-gray-100 hover:bg-gray-200 rounded border border-gray-300"
+                        >
+                            <code class="text-sm text-red-600">&lt;iframe src=javascript:alert(1)&gt;</code>
+                        </button>
+
+                        <button
+                            onclick="testAttack('&lt;body onload=alert(1)&gt;')"
+                            class="text-left px-4 py-3 bg-gray-100 hover:bg-gray-200 rounded border border-gray-300"
+                        >
+                            <code class="text-sm text-red-600">&lt;body onload=alert(1)&gt;</code>
+                        </button>
+                    </div>
+
+                    <div class="mt-4 p-4 bg-green-50 rounded">
+                        <p class="text-green-800 font-semibold">
+                            ✅ All these attacks are automatically neutralized by Miojo's HTML escaping!
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Technical Details -->
+                <div class="bg-white rounded-lg shadow-xl p-6">
+                    <h2 class="text-2xl font-bold mb-4">🔧 How It Works</h2>
+
+                    <div class="space-y-4">
+                        <div class="p-4 bg-blue-50 rounded-lg">
+                            <h3 class="font-bold text-blue-900 mb-2">Default Behavior (Secure)</h3>
+                            <code class="text-sm bg-blue-100 px-2 py-1 rounded">{{ '{' }}{{ '{' }} variable {{ '}' }}{{ '}' }}</code>
+                            <p class="text-sm text-blue-800 mt-2">
+                                All HTML characters are escaped: &lt; &gt; &amp; " '
+                            </p>
+                        </div>
+
+                        <div class="p-4 bg-orange-50 rounded-lg">
+                            <h3 class="font-bold text-orange-900 mb-2">Raw Output (Use with caution)</h3>
+                            <code class="text-sm bg-orange-100 px-2 py-1 rounded">{{ '{' }}{{ '{' }}{{ '{' }} trustedHTML {{ '}' }}{{ '}' }}{{ '}' }}</code>
+                            <p class="text-sm text-orange-800 mt-2">
+                                Only use for trusted content you control!
+                            </p>
+                        </div>
+
+                        <div class="p-4 bg-green-50 rounded-lg">
+                            <h3 class="font-bold text-green-900 mb-2">Additional Protections</h3>
+                            <ul class="text-sm text-green-800 space-y-1">
+                                <li>✓ Route parameters are sanitized</li>
+                                <li>✓ Script tags removed from URLs</li>
+                                <li>✓ Event handlers stripped (onclick, onerror, etc.)</li>
+                                <li>✓ javascript: protocol blocked</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 p-4 bg-gray-100 rounded-lg">
+                        <h3 class="font-bold mb-2">Migration from v0.0.5:</h3>
+                        <p class="text-sm text-gray-700">
+                            If you need raw HTML output, change <code class="bg-gray-200 px-1 rounded">{{ '{' }}{{ '{' }} html {{ '}' }}{{ '}' }}</code>
+                            to <code class="bg-gray-200 px-1 rounded">{{ '{' }}{{ '{' }}{{ '{' }} html {{ '}' }}{{ '}' }}{{ '}' }}</code>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Actions
+        window.updateUserInput = (event) => {
+            app.setState('userInput', event.target.value);
+        };
+
+        window.setDisplayMode = (mode) => {
+            app.setState('displayMode', mode);
+        };
+
+        window.testAttack = (attack) => {
+            app.setState('userInput', attack.replace(/&lt;/g, '<').replace(/&gt;/g, '>'));
+            app.setState('displayMode', 'escaped');
+        };
+
+        window.addComment = (event) => {
+            event.preventDefault();
+            const input = document.getElementById('commentInput');
+            const text = input.value.trim();
+
+            if (!text) return;
+
+            const containsHTML = /<[^>]*>/g.test(text);
+
+            const comment = {
+                author: app.getState('userName') || 'Anonymous',
+                text: text,
+                time: new Date().toLocaleTimeString(),
+                containsHTML
+            };
+
+            app.updateState('comments', comments => [...comments, comment]);
+            input.value = '';
+        };
+
+        window.deleteComment = (index) => {
+            app.updateState('comments', comments =>
+                comments.filter((_, i) => i !== index)
+            );
+        };
+
+        app.route('/', () => {
+            app.render(template, {
+                userInput: app.getState('userInput'),
+                displayMode: app.getState('displayMode'),
+                comments: app.getState('comments')
+            });
+        });
+
+        app.init();
+
+        console.log('🛡️ Security Demo loaded!');
+        console.log('Try injecting XSS attacks - they are all safely escaped!');
+    </script>
+</body>
+</html>

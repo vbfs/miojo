@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Todo App - Miojo v0.0.6</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .fade-in { animation: fadeIn 0.3s ease-in; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .completed { text-decoration: line-through; opacity: 0.6; }
+        .badge { @apply px-2 py-1 rounded text-xs font-semibold; }
+        .badge-primary { @apply bg-blue-100 text-blue-800; }
+        .badge-success { @apply bg-green-100 text-green-800; }
+        .badge-warning { @apply bg-yellow-100 text-yellow-800; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div id="app"></div>
+
+    <!-- Load Miojo from local dist -->
+    <script src="../dist/miojo.min.js"></script>
+    <script>
+        // ================================================================
+        // MIOJO v0.0.6 - ADVANCED TODO APP
+        // Demonstra todas as novas features: HTTP, DOM helpers, persistence,
+        // wildcard routes, security, performance, etc.
+        // ================================================================
+
+        const app = miojo.createApp({ container: '#app' });
+
+        // ================================================================
+        // STATE MANAGEMENT WITH PERSISTENCE
+        // ================================================================
+
+        app.setState('todos', [])
+           .persist('todos')  // ✨ NEW: Auto-save to localStorage!
+
+           .setState('newTodo', '')
+           .setState('filter', 'all')
+           .setState('loading', false)
+           .setState('error', null)
+           .setState('user', { name: 'Guest', avatar: '👤' })
+           .persist('user')  // ✨ NEW: User persists across sessions
+
+           .setState('searchQuery', '')
+           .setState('apiStats', { calls: 0, errors: 0 });
+
+        // ================================================================
+        // COMPUTED VALUES WITH MEMOIZATION
+        // ================================================================
+
+        // ✨ NEW: Computed values are memoized - only recalculate when deps change
+        const getFilteredTodos = app.computed(['todos', 'filter', 'searchQuery'],
+            (todos, filter, query) => {
+                console.log('🔄 Computing filtered todos...'); // Only logs when changed!
+
+                let filtered = todos || [];
+
+                // Apply filter
+                if (filter === 'active') {
+                    filtered = filtered.filter(t => !t.completed);
+                } else if (filter === 'completed') {
+                    filtered = filtered.filter(t => t.completed);
+                }
+
+                // Apply search
+                if (query) {
+                    filtered = filtered.filter(t =>
+                        t.text.toLowerCase().includes(query.toLowerCase())
+                    );
+                }
+
+                return filtered;
+            }
+        );
+
+        const getStats = app.computed(['todos'], (todos) => {
+            const total = todos?.length || 0;
+            const completed = todos?.filter(t => t.completed).length || 0;
+            const active = total - completed;
+            const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+            return { total, completed, active, percentage };
+        });
+
+        // ================================================================
+        // TEMPLATES
+        // ================================================================
+
+        const navTemplate = `
+            <nav class="bg-white shadow-sm mb-6">
+                <div class="max-w-4xl mx-auto px-4 py-4">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-4">
+                            <a href="/" class="text-2xl font-bold text-blue-600 hover:text-blue-700">
+                                🍜 Miojo Todo
+                            </a>
+                            <span class="badge badge-primary">v0.0.6</span>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <a href="/stats" class="text-gray-600 hover:text-gray-900">Stats</a>
+                            <a href="/about" class="text-gray-600 hover:text-gray-900">About</a>
+                            <div class="flex items-center gap-2">
+                                <span class="text-2xl">{{ user.avatar }}</span>
+                                <span class="text-sm text-gray-700">{{ user.name }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+        `;
+
+        const todoListTemplate = `
+            <div class="fade-in max-w-4xl mx-auto px-4">
+                ${navTemplate}
+
+                <!-- Error Alert -->
+                {{#if error}}
+                    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                        <strong>Error:</strong> {{ error }}
+                    </div>
+                {{/if}}
+
+                <!-- Stats Cards -->
+                <div class="grid grid-cols-4 gap-4 mb-6">
+                    <div class="bg-white rounded-lg shadow p-4">
+                        <div class="text-gray-500 text-sm">Total</div>
+                        <div class="text-3xl font-bold text-blue-600">{{ stats.total }}</div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow p-4">
+                        <div class="text-gray-500 text-sm">Active</div>
+                        <div class="text-3xl font-bold text-orange-600">{{ stats.active }}</div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow p-4">
+                        <div class="text-gray-500 text-sm">Done</div>
+                        <div class="text-3xl font-bold text-green-600">{{ stats.completed }}</div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow p-4">
+                        <div class="text-gray-500 text-sm">Progress</div>
+                        <div class="text-3xl font-bold text-purple-600">{{ stats.percentage }}%</div>
+                    </div>
+                </div>
+
+                <!-- Main Card -->
+                <div class="bg-white rounded-lg shadow-lg p-6">
+                    <h1 class="text-3xl font-bold mb-6 text-gray-800">My Tasks</h1>
+
+                    <!-- Add Todo Form -->
+                    <form onsubmit="addTodo(event)" class="mb-6">
+                        <div class="flex gap-2">
+                            <input
+                                type="text"
+                                value="{{ newTodo }}"
+                                oninput="updateNewTodo(event)"
+                                placeholder="What needs to be done?"
+                                class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                            <button
+                                type="submit"
+                                class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-semibold transition"
+                                {{#if loading}}disabled{{/if}}
+                            >
+                                {{#if loading}}Adding...{{else}}Add{{/if}}
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Search Bar -->
+                    <div class="mb-4">
+                        <input
+                            type="search"
+                            value="{{ searchQuery }}"
+                            oninput="updateSearch(event)"
+                            placeholder="🔍 Search todos..."
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                    </div>
+
+                    <!-- Filter Tabs -->
+                    <div class="flex gap-2 mb-4 border-b border-gray-200">
+                        <button
+                            onclick="setFilter('all')"
+                            class="px-4 py-2 {{ filter === 'all' ? 'border-b-2 border-blue-600 text-blue-600 font-semibold' : 'text-gray-600' }}"
+                        >
+                            All
+                        </button>
+                        <button
+                            onclick="setFilter('active')"
+                            class="px-4 py-2 {{ filter === 'active' ? 'border-b-2 border-blue-600 text-blue-600 font-semibold' : 'text-gray-600' }}"
+                        >
+                            Active
+                        </button>
+                        <button
+                            onclick="setFilter('completed')"
+                            class="px-4 py-2 {{ filter === 'completed' ? 'border-b-2 border-blue-600 text-blue-600 font-semibold' : 'text-gray-600' }}"
+                        >
+                            Completed
+                        </button>
+                    </div>
+
+                    <!-- Todo List -->
+                    <div class="space-y-2">
+                        {{#each filteredTodos}}
+                            <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition group">
+                                <!-- ✨ NEW: Loop helpers @first, @last, @index -->
+                                {{#if @first}}
+                                    <span class="badge badge-success">First!</span>
+                                {{/if}}
+
+                                <input
+                                    type="checkbox"
+                                    {{ this.completed ? 'checked' : '' }}
+                                    onchange="toggleTodo({{ @index }})"
+                                    class="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                                >
+
+                                <span class="flex-1 {{ this.completed ? 'completed' : '' }} text-gray-800">
+                                    {{ this.text }}
+                                </span>
+
+                                {{#if this.priority}}
+                                    <span class="badge badge-warning">{{ this.priority }}</span>
+                                {{/if}}
+
+                                <span class="text-xs text-gray-500">
+                                    {{ this.createdAt }}
+                                </span>
+
+                                <button
+                                    onclick="removeTodo({{ @index }})"
+                                    class="text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition"
+                                >
+                                    ✕
+                                </button>
+
+                                {{#if @last}}
+                                    <span class="badge badge-warning">Last</span>
+                                {{/if}}
+                            </div>
+                        {{/each}}
+                    </div>
+
+                    <!-- Empty State -->
+                    {{#unless filteredTodos.length}}
+                        <div class="text-center py-12 text-gray-500">
+                            <div class="text-6xl mb-4">📝</div>
+                            <p class="text-xl">No tasks found</p>
+                            <p class="text-sm">Start by adding a new task above</p>
+                        </div>
+                    {{/unless}}
+
+                    <!-- API Stats -->
+                    <div class="mt-6 pt-6 border-t border-gray-200 text-sm text-gray-600">
+                        <div class="flex justify-between">
+                            <span>API Calls: {{ apiStats.calls }}</span>
+                            <span>Errors: {{ apiStats.errors }}</span>
+                            <span class="text-green-600">✓ Auto-saved to localStorage</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Feature Showcase -->
+                <div class="mt-8 bg-blue-50 rounded-lg p-6">
+                    <h3 class="font-bold text-lg mb-2 text-blue-900">🎉 Miojo v0.0.6 Features</h3>
+                    <ul class="grid grid-cols-2 gap-2 text-sm text-blue-800">
+                        <li>✅ XSS Protection (HTML escaped)</li>
+                        <li>✅ State Persistence (localStorage)</li>
+                        <li>✅ Computed Values (memoized)</li>
+                        <li>✅ Template Caching</li>
+                        <li>✅ HTTP Helpers</li>
+                        <li>✅ DOM Utilities</li>
+                        <li>✅ Wildcard Routes</li>
+                        <li>✅ Memory Leak Prevention</li>
+                    </ul>
+                </div>
+            </div>
+        `;
+
+        const statsTemplate = `
+            <div class="fade-in max-w-4xl mx-auto px-4">
+                ${navTemplate}
+
+                <div class="bg-white rounded-lg shadow-lg p-6">
+                    <h1 class="text-3xl font-bold mb-6 text-gray-800">Statistics</h1>
+
+                    <div class="space-y-4">
+                        <div>
+                            <div class="flex justify-between mb-2">
+                                <span class="text-gray-600">Completion Rate</span>
+                                <span class="font-bold text-blue-600">{{ stats.percentage }}%</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-4">
+                                <div
+                                    class="bg-blue-600 h-4 rounded-full transition-all duration-500"
+                                    style="width: {{ stats.percentage }}%"
+                                ></div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-3 gap-4 mt-6">
+                            <div class="text-center p-4 bg-blue-50 rounded-lg">
+                                <div class="text-4xl font-bold text-blue-600">{{ stats.total }}</div>
+                                <div class="text-gray-600 mt-2">Total Tasks</div>
+                            </div>
+                            <div class="text-center p-4 bg-orange-50 rounded-lg">
+                                <div class="text-4xl font-bold text-orange-600">{{ stats.active }}</div>
+                                <div class="text-gray-600 mt-2">Active</div>
+                            </div>
+                            <div class="text-center p-4 bg-green-50 rounded-lg">
+                                <div class="text-4xl font-bold text-green-600">{{ stats.completed }}</div>
+                                <div class="text-gray-600 mt-2">Completed</div>
+                            </div>
+                        </div>
+
+                        <div class="mt-6 p-4 bg-gray-50 rounded-lg">
+                            <h3 class="font-semibold mb-2">API Statistics</h3>
+                            <div class="text-sm text-gray-600">
+                                <p>Total API Calls: {{ apiStats.calls }}</p>
+                                <p>Errors: {{ apiStats.errors }}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <a href="/" class="inline-block mt-6 text-blue-600 hover:text-blue-700">
+                        ← Back to todos
+                    </a>
+                </div>
+            </div>
+        `;
+
+        const aboutTemplate = `
+            <div class="fade-in max-w-4xl mx-auto px-4">
+                ${navTemplate}
+
+                <div class="bg-white rounded-lg shadow-lg p-6">
+                    <h1 class="text-3xl font-bold mb-6 text-gray-800">About Miojo v0.0.6</h1>
+
+                    <div class="prose max-w-none">
+                        <p class="text-gray-600 mb-4">
+                            This is an advanced todo app showcasing all the new features in Miojo v0.0.6.
+                        </p>
+
+                        <h3 class="text-xl font-bold mt-6 mb-3">New Features Demonstrated:</h3>
+
+                        <div class="grid gap-4">
+                            <div class="p-4 bg-green-50 rounded-lg">
+                                <h4 class="font-semibold text-green-900">🔒 Security</h4>
+                                <p class="text-sm text-green-800">
+                                    All user input is automatically HTML-escaped to prevent XSS attacks.
+                                    Try typing &lt;script&gt;alert('xss')&lt;/script&gt; in a todo!
+                                </p>
+                            </div>
+
+                            <div class="p-4 bg-blue-50 rounded-lg">
+                                <h4 class="font-semibold text-blue-900">💾 Persistence</h4>
+                                <p class="text-sm text-blue-800">
+                                    Your todos and user info are automatically saved to localStorage.
+                                    Refresh the page - your data persists!
+                                </p>
+                            </div>
+
+                            <div class="p-4 bg-purple-50 rounded-lg">
+                                <h4 class="font-semibold text-purple-900">⚡ Performance</h4>
+                                <p class="text-sm text-purple-800">
+                                    Computed values are memoized, templates are cached, and memory leaks are prevented.
+                                    Check the console - computed values only recalculate when needed!
+                                </p>
+                            </div>
+
+                            <div class="p-4 bg-orange-50 rounded-lg">
+                                <h4 class="font-semibold text-orange-900">🎨 Enhanced Templates</h4>
+                                <p class="text-sm text-orange-800">
+                                    New template features: if/else blocks, @first/@last loop helpers,
+                                    and better nested property support.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="mt-6 p-4 bg-gray-100 rounded-lg">
+                            <h4 class="font-semibold mb-2">Tech Stack:</h4>
+                            <ul class="text-sm space-y-1">
+                                <li>🍜 Miojo v0.0.6 (8.5KB minified)</li>
+                                <li>🎨 Tailwind CSS</li>
+                                <li>📦 Zero dependencies</li>
+                                <li>⚡ Pure functional JavaScript</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <a href="/" class="inline-block mt-6 text-blue-600 hover:text-blue-700">
+                        ← Back to todos
+                    </a>
+                </div>
+            </div>
+        `;
+
+        // ================================================================
+        // ACTIONS
+        // ================================================================
+
+        window.addTodo = async (event) => {
+            event.preventDefault();
+            const text = app.getState('newTodo').trim();
+
+            if (!text) return;
+
+            app.setState('loading', true);
+            app.setState('error', null);
+
+            try {
+                // ✨ NEW: HTTP helpers with automatic JSON parsing
+                // Simulating API call (you can replace with real endpoint)
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                const todos = app.getState('todos') || [];
+                const newTodo = {
+                    id: Date.now(),
+                    text: text, // ✨ NEW: Automatically HTML-escaped in template!
+                    completed: false,
+                    priority: text.includes('!') ? 'high' : null,
+                    createdAt: new Date().toLocaleTimeString()
+                };
+
+                app.updateState('todos', t => [...t, newTodo]);
+                app.setState('newTodo', '');
+
+                // Update API stats
+                app.updateState('apiStats', stats => ({
+                    ...stats,
+                    calls: stats.calls + 1
+                }));
+
+            } catch (error) {
+                app.setState('error', error.message);
+                app.updateState('apiStats', stats => ({
+                    ...stats,
+                    errors: stats.errors + 1
+                }));
+            } finally {
+                app.setState('loading', false);
+            }
+        };
+
+        window.updateNewTodo = (event) => {
+            app.setState('newTodo', event.target.value);
+        };
+
+        window.updateSearch = (event) => {
+            // ✨ NEW: Could use debounce here for better performance
+            // const debouncedSearch = miojo.helpers.debounce(() => {
+            //     app.setState('searchQuery', event.target.value);
+            // }, 300);
+            app.setState('searchQuery', event.target.value);
+        };
+
+        window.toggleTodo = (index) => {
+            const todos = app.getState('todos');
+            const filteredTodos = getFilteredTodos();
+            const todo = filteredTodos[index];
+            const actualIndex = todos.findIndex(t => t.id === todo.id);
+
+            app.updateState('todos', todos =>
+                todos.map((t, i) =>
+                    i === actualIndex ? { ...t, completed: !t.completed } : t
+                )
+            );
+        };
+
+        window.removeTodo = (index) => {
+            const todos = app.getState('todos');
+            const filteredTodos = getFilteredTodos();
+            const todo = filteredTodos[index];
+            const actualIndex = todos.findIndex(t => t.id === todo.id);
+
+            app.updateState('todos', todos => todos.filter((_, i) => i !== actualIndex));
+        };
+
+        window.setFilter = (filter) => {
+            app.setState('filter', filter);
+        };
+
+        // ================================================================
+        // ROUTES
+        // ================================================================
+
+        // Home route
+        app.route('/', () => {
+            const filteredTodos = getFilteredTodos();
+            const stats = getStats();
+
+            app.render(todoListTemplate, {
+                todos: app.getState('todos'),
+                filteredTodos,
+                newTodo: app.getState('newTodo'),
+                filter: app.getState('filter'),
+                loading: app.getState('loading'),
+                error: app.getState('error'),
+                user: app.getState('user'),
+                searchQuery: app.getState('searchQuery'),
+                apiStats: app.getState('apiStats'),
+                stats
+            });
+        });
+
+        // Stats route
+        app.route('/stats', () => {
+            const stats = getStats();
+
+            app.render(statsTemplate, {
+                user: app.getState('user'),
+                stats,
+                apiStats: app.getState('apiStats')
+            });
+        });
+
+        // About route
+        app.route('/about', () => {
+            app.render(aboutTemplate, {
+                user: app.getState('user')
+            });
+        });
+
+        // ✨ NEW: 404 Handler
+        app.notFound(({ path }) => {
+            app.render(`
+                <div class="max-w-4xl mx-auto px-4 py-16 text-center">
+                    <div class="text-8xl mb-4">🤔</div>
+                    <h1 class="text-4xl font-bold mb-4 text-gray-800">404 - Page Not Found</h1>
+                    <p class="text-gray-600 mb-8">
+                        The page <code class="bg-gray-200 px-2 py-1 rounded">{{ path }}</code> doesn't exist.
+                    </p>
+                    <a href="/" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg inline-block">
+                        Go Home
+                    </a>
+                </div>
+            `, { path });
+        });
+
+        // ================================================================
+        // REACTIVE RENDERING WITH AUTO-CLEANUP
+        // ================================================================
+
+        // Subscribe to state changes for reactive updates
+        // ✨ NEW: All subscriptions return cleanup functions
+        const unsubscribeTodos = app.subscribe('todos', () => {
+            console.log('📝 Todos changed!');
+        });
+
+        const unsubscribeFilter = app.subscribe('filter', () => {
+            console.log('🔍 Filter changed!');
+        });
+
+        // ✨ NEW: Cleanup on page unload to prevent memory leaks
+        app.onUnload(() => {
+            console.log('🧹 Cleaning up subscriptions...');
+            unsubscribeTodos();
+            unsubscribeFilter();
+        });
+
+        // ================================================================
+        // GLOBAL EVENT DELEGATION
+        // ================================================================
+
+        // ✨ NEW: Event delegation with cleanup
+        const cleanupClicks = miojo.helpers.on('click', 'button', (e) => {
+            console.log('Button clicked:', e.target.textContent);
+        });
+
+        // ================================================================
+        // DOM HELPERS DEMO
+        // ================================================================
+
+        // ✨ NEW: DOM manipulation utilities
+        app.onLoad(() => {
+            console.log('🎉 App mounted!');
+
+            // Example of DOM helpers (uncomment to test)
+            // const buttons = miojo.helpers.dom.qsa('button');
+            // console.log('Found buttons:', buttons.length);
+
+            // const newDiv = miojo.helpers.dom.create('div', {
+            //     className: 'test-div',
+            //     textContent: 'Created with DOM helpers!'
+            // });
+        });
+
+        // ================================================================
+        // INITIALIZE APP
+        // ================================================================
+
+        app.init();
+
+        // Add some demo data if empty
+        if (!app.getState('todos') || app.getState('todos').length === 0) {
+            app.setState('todos', [
+                {
+                    id: 1,
+                    text: 'Try the new XSS protection! Type <script>alert("test")</script>',
+                    completed: false,
+                    priority: 'high',
+                    createdAt: new Date().toLocaleTimeString()
+                },
+                {
+                    id: 2,
+                    text: 'Check out state persistence - refresh the page!',
+                    completed: false,
+                    createdAt: new Date().toLocaleTimeString()
+                },
+                {
+                    id: 3,
+                    text: 'Computed values are memoized (check console)',
+                    completed: true,
+                    createdAt: new Date().toLocaleTimeString()
+                },
+                {
+                    id: 4,
+                    text: 'Navigate to /stats and /about',
+                    completed: false,
+                    createdAt: new Date().toLocaleTimeString()
+                }
+            ]);
+        }
+
+        console.log('%c🍜 Miojo v0.0.6 Advanced Todo App', 'font-size: 20px; font-weight: bold; color: #2563eb;');
+        console.log('%cFeatures: XSS Protection, State Persistence, HTTP Helpers, Computed Memoization, and more!', 'color: #10b981;');
+    </script>
+</body>
+</html>
