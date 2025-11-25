@@ -64,7 +64,7 @@
                             <label class="block mb-2 font-semibold text-gray-700">Name:</label>
                             <input
                                 type="text"
-                                value="{{ userName }}"
+                                id="userNameInput"
                                 oninput="updateUserName(event)"
                                 class="w-full px-4 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:outline-none"
                                 placeholder="Enter your name"
@@ -268,8 +268,9 @@
 
         // Actions
         window.updateUserName = (event) => {
+            // Apenas atualiza o state, NÃO re-renderiza
+            // (evita perder o foco do input)
             app.setState('userName', event.target.value);
-            renderPage();
         };
 
         window.setTheme = (theme) => {
@@ -318,6 +319,14 @@
         app.route('/', renderPage);
 
         app.init();
+
+        // Popular o input com o valor persistido (apenas na primeira carga)
+        app.onLoad(() => {
+            const input = document.getElementById('userNameInput');
+            if (input) {
+                input.value = app.getState('userName');
+            }
+        });
 
         console.log('💾 State Persistence Demo loaded!');
         console.log('Current localStorage:', localStorage.getItem('miojo_state'));
