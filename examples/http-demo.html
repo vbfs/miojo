@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTTP Helpers Demo - Miojo v0.0.6</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div id="app"></div>
+    <script src="../dist/miojo.min.js"></script>
+    <script>
+        const app = miojo.createApp({ container: '#app' });
+
+        app.setState('users', [])
+           .setState('loading', false)
+           .setState('error', null)
+           .setState('selectedUser', null);
+
+        const template = `
+            <div class="max-w-4xl mx-auto">
+                <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                    <h1 class="text-3xl font-bold mb-4">🌐 HTTP Helpers Demo</h1>
+                    <p class="text-gray-600 mb-4">
+                        Demonstração dos novos HTTP helpers do Miojo v0.0.6
+                    </p>
+
+                    <div class="flex gap-2 mb-4">
+                        <button
+                            onclick="fetchUsers()"
+                            class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                            {{#if loading}}disabled{{/if}}
+                        >
+                            {{#if loading}}Loading...{{else}}Fetch Users (GET){{/if}}
+                        </button>
+
+                        <button
+                            onclick="createUser()"
+                            class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                        >
+                            Create User (POST)
+                        </button>
+
+                        <button
+                            onclick="updateUser()"
+                            class="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700"
+                        >
+                            Update User (PUT)
+                        </button>
+
+                        <button
+                            onclick="deleteUser()"
+                            class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+                        >
+                            Delete User (DELETE)
+                        </button>
+                    </div>
+
+                    {{#if error}}
+                        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                            <strong>Error:</strong> {{ error }}
+                        </div>
+                    {{/if}}
+
+                    <div class="bg-gray-50 p-4 rounded">
+                        <h3 class="font-semibold mb-2">Request Log:</h3>
+                        <pre id="log" class="text-sm text-gray-700 overflow-auto max-h-96"></pre>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-lg shadow-lg p-6">
+                    <h2 class="text-2xl font-bold mb-4">Users ({{ users.length }})</h2>
+
+                    {{#if users.length}}
+                        <div class="grid gap-4">
+                            {{#each users}}
+                                <div class="border border-gray-200 rounded p-4 hover:shadow transition">
+                                    <div class="flex items-start justify-between">
+                                        <div>
+                                            <h3 class="font-bold text-lg">{{ this.name }}</h3>
+                                            <p class="text-gray-600">{{ this.email }}</p>
+                                            <p class="text-sm text-gray-500 mt-1">
+                                                Company: {{ this.company.name }}
+                                            </p>
+                                        </div>
+                                        <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
+                                            ID: {{ this.id }}
+                                        </span>
+                                    </div>
+                                </div>
+                            {{/each}}
+                        </div>
+                    {{else}}
+                        <p class="text-gray-500 text-center py-8">
+                            No users loaded. Click "Fetch Users" to load data.
+                        </p>
+                    {{/if}}
+                </div>
+
+                <div class="mt-6 bg-blue-50 rounded-lg p-6">
+                    <h3 class="font-bold mb-3">✨ Features Demonstrated:</h3>
+                    <ul class="space-y-2 text-sm">
+                        <li>✅ <code class="bg-blue-100 px-2 py-1 rounded">miojo.helpers.http.get()</code> - GET requests</li>
+                        <li>✅ <code class="bg-blue-100 px-2 py-1 rounded">miojo.helpers.http.post()</code> - POST with JSON</li>
+                        <li>✅ <code class="bg-blue-100 px-2 py-1 rounded">miojo.helpers.http.put()</code> - PUT updates</li>
+                        <li>✅ <code class="bg-blue-100 px-2 py-1 rounded">miojo.helpers.http.delete()</code> - DELETE requests</li>
+                        <li>✅ Automatic JSON parsing</li>
+                        <li>✅ Error handling with detailed messages</li>
+                        <li>✅ Status code validation</li>
+                    </ul>
+                </div>
+            </div>
+        `;
+
+        function log(message) {
+            const logEl = document.getElementById('log');
+            if (logEl) {
+                const timestamp = new Date().toLocaleTimeString();
+                logEl.textContent += `[${timestamp}] ${message}\n`;
+                logEl.scrollTop = logEl.scrollHeight;
+            }
+        }
+
+        // ✨ NEW: HTTP GET
+        window.fetchUsers = async () => {
+            app.setState('loading', true);
+            app.setState('error', null);
+            log('🔄 Fetching users...');
+
+            try {
+                const users = await miojo.helpers.http.get(
+                    'https://jsonplaceholder.typicode.com/users'
+                );
+
+                app.setState('users', users);
+                log(`✅ Successfully fetched ${users.length} users`);
+            } catch (error) {
+                app.setState('error', error.message);
+                log(`❌ Error: ${error.message}`);
+            } finally {
+                app.setState('loading', false);
+            }
+        };
+
+        // ✨ NEW: HTTP POST
+        window.createUser = async () => {
+            log('🔄 Creating new user...');
+
+            try {
+                const newUser = await miojo.helpers.http.post(
+                    'https://jsonplaceholder.typicode.com/users',
+                    {
+                        name: 'John Doe',
+                        email: 'john@example.com',
+                        username: 'johndoe'
+                    }
+                );
+
+                log(`✅ User created with ID: ${newUser.id}`);
+                log(JSON.stringify(newUser, null, 2));
+            } catch (error) {
+                log(`❌ Error: ${error.message}`);
+            }
+        };
+
+        // ✨ NEW: HTTP PUT
+        window.updateUser = async () => {
+            log('🔄 Updating user...');
+
+            try {
+                const updated = await miojo.helpers.http.put(
+                    'https://jsonplaceholder.typicode.com/users/1',
+                    {
+                        name: 'Updated Name',
+                        email: 'updated@example.com'
+                    }
+                );
+
+                log(`✅ User updated: ${updated.name}`);
+                log(JSON.stringify(updated, null, 2));
+            } catch (error) {
+                log(`❌ Error: ${error.message}`);
+            }
+        };
+
+        // ✨ NEW: HTTP DELETE
+        window.deleteUser = async () => {
+            log('🔄 Deleting user...');
+
+            try {
+                await miojo.helpers.http.delete(
+                    'https://jsonplaceholder.typicode.com/users/1'
+                );
+
+                log('✅ User deleted successfully');
+            } catch (error) {
+                log(`❌ Error: ${error.message}`);
+            }
+        };
+
+        app.route('/', () => {
+            app.render(template, {
+                users: app.getState('users'),
+                loading: app.getState('loading'),
+                error: app.getState('error')
+            });
+        });
+
+        app.init();
+
+        console.log('🌐 HTTP Helpers Demo loaded!');
+        console.log('Try fetching users from JSONPlaceholder API');
+    </script>
+</body>
+</html>
