@@ -270,6 +270,9 @@ function openBrowser(url) {
 function startServer(options) {
     console.log(banner);
 
+    // Increase max listeners to prevent warnings
+    process.setMaxListeners(20);
+
     const server = http.createServer((request, response) => {
         const parsedUrl = url.parse(request.url, true);
         let pathname = decodeURIComponent(parsedUrl.pathname);
@@ -353,13 +356,30 @@ function startServer(options) {
         process.exit(1);
     });
 
-    process.on('SIGINT', () => {
+    // Use 'once' instead of 'on' to prevent listener accumulation
+    const handleShutdown = () => {
         console.log(`\n${colorize('yellow', '🛑 stopping server...')}`);
+
+        // Force exit after 2 seconds if server doesn't close gracefully
+        const forceExitTimer = setTimeout(() => {
+            console.log(`${colorize('yellow', '⚠️  forcing shutdown...')}`);
+            process.exit(0);
+        }, 2000);
+
         server.close(() => {
+            clearTimeout(forceExitTimer);
             console.log(`${colorize('green', '✅ server stopped!')}`);
             process.exit(0);
         });
-    });
+
+        // Stop accepting new connections immediately
+        server.closeAllConnections?.(); // Node 18.2+
+    };
+
+    // Remove any existing SIGINT listeners to prevent duplicates
+    process.removeAllListeners('SIGINT');
+    process.once('SIGINT', handleShutdown);
+    process.once('SIGTERM', handleShutdown);
 }
 
 function main() {
