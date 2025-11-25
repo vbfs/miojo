@@ -1,6 +1,6 @@
 {
   "name": "miojo",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "miojo is a lightweight functional micro-framework for SPAs. It comes with the essential ingredients — router, state, template engine, and lifecycle hooks — so you can build apps instantly.",
   "license": "MIT",
   "main": "dist/miojo.min.js",
@@ -14,6 +14,7 @@
     "bin/",
     "templates/",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "scripts": {
@@ -29,7 +30,13 @@
     "server",
     "cli",
     "javascript",
-    "reactive"
+    "reactive",
+    "typescript",
+    "security",
+    "xss-protection",
+    "state-management",
+    "router",
+    "template-engine"
   ],
   "author": "Vinícius Barreto",
   "repository": {

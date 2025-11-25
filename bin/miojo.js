@@ -186,7 +186,7 @@ const homeTemplate = \`
             <div class="text-center">
                 <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl mb-6 shadow-lg">
                     <span class="text-2xl font-bold text-white">🍜</span>
-                </div>f
+                </div>
 
                 <h1 class="text-5xl font-bold text-gray-900 mb-4">{{ appName }}</h1>
                 <p class="text-xl text-gray-600 mb-8">built with miojo</p>
@@ -311,6 +311,11 @@ function startServer(options) {
 
                 response.writeHead(200, {
                     'Content-Type': mimeType,
+                    'Content-Security-Policy': "default-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://cdn.tailwindcss.com; img-src 'self' data: https:; font-src 'self' data: https:;",
+                    'X-Content-Type-Options': 'nosniff',
+                    'X-Frame-Options': 'SAMEORIGIN',
+                    'X-XSS-Protection': '1; mode=block',
+                    'Referrer-Policy': 'strict-origin-when-cross-origin',
                     'Access-Control-Allow-Origin': '*',
                     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
                     'Access-Control-Allow-Headers': 'Content-Type'
