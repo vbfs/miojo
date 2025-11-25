@@ -254,25 +254,42 @@
             </div>
         `;
 
+        // Helper function to re-render
+        const renderPage = () => {
+            app.render(template, {
+                userName: app.getState('userName'),
+                theme: app.getState('theme'),
+                counter: app.getState('counter'),
+                preferences: app.getState('preferences'),
+                sessionData: app.getState('sessionData'),
+                lastVisit: app.getState('lastVisit')
+            });
+        };
+
         // Actions
         window.updateUserName = (event) => {
             app.setState('userName', event.target.value);
+            renderPage();
         };
 
         window.setTheme = (theme) => {
             app.setState('theme', theme);
+            renderPage();
         };
 
         window.incrementCounter = () => {
             app.updateState('counter', c => c + 1);
+            renderPage();
         };
 
         window.decrementCounter = () => {
             app.updateState('counter', c => c - 1);
+            renderPage();
         };
 
         window.resetCounter = () => {
             app.setState('counter', 0);
+            renderPage();
         };
 
         window.togglePreference = (key) => {
@@ -280,6 +297,7 @@
                 ...prefs,
                 [key]: !prefs[key]
             }));
+            renderPage();
         };
 
         window.updateLanguage = (event) => {
@@ -287,6 +305,7 @@
                 ...prefs,
                 language: event.target.value
             }));
+            renderPage();
         };
 
         window.clearAllData = () => {
@@ -296,21 +315,13 @@
             }
         };
 
-        app.route('/', () => {
-            app.render(template, {
-                userName: app.getState('userName'),
-                theme: app.getState('theme'),
-                counter: app.getState('counter'),
-                preferences: app.getState('preferences'),
-                sessionData: app.getState('sessionData'),
-                lastVisit: app.getState('lastVisit')
-            });
-        });
+        app.route('/', renderPage);
 
         app.init();
 
         console.log('💾 State Persistence Demo loaded!');
         console.log('Current localStorage:', localStorage.getItem('miojo_state'));
+        console.log('✨ Using intelligent DOM diffing - inputs preserve focus!');
     </script>
 </body>
 </html>

@@ -637,11 +637,231 @@
   };
 
   // ============================================================================
+  // DOM DIFFING (Intelligent DOM Updates)
+  // ============================================================================
+
+  const DOMDiff = (() => {
+    // Create a virtual node from a real DOM element
+    const createVNode = (el) => {
+      if (el.nodeType === Node.TEXT_NODE) {
+        return { type: 'text', value: el.textContent };
+      }
+
+      if (el.nodeType !== Node.ELEMENT_NODE) {
+        return null;
+      }
+
+      const vnode = {
+        type: 'element',
+        tag: el.tagName.toLowerCase(),
+        attrs: {},
+        children: []
+      };
+
+      // Copy attributes
+      Array.from(el.attributes).forEach(attr => {
+        vnode.attrs[attr.name] = attr.value;
+      });
+
+      // Copy children
+      Array.from(el.childNodes).forEach(child => {
+        const childVNode = createVNode(child);
+        if (childVNode) vnode.children.push(childVNode);
+      });
+
+      return vnode;
+    };
+
+    // Parse HTML string to VNode tree
+    const parseHTML = (html) => {
+      const template = document.createElement('template');
+      template.innerHTML = html.trim();
+
+      const children = [];
+      Array.from(template.content.childNodes).forEach(child => {
+        const vnode = createVNode(child);
+        if (vnode) children.push(vnode);
+      });
+
+      return children.length === 1 ? children[0] : { type: 'fragment', children };
+    };
+
+    // Check if two vnodes are the same type
+    const sameVNode = (a, b) => {
+      if (!a || !b) return false;
+      if (a.type !== b.type) return false;
+      if (a.type === 'text') return true;
+      if (a.tag !== b.tag) return false;
+
+      // Key-based reconciliation for lists
+      const aKey = a.attrs?.key;
+      const bKey = b.attrs?.key;
+      if (aKey || bKey) {
+        return aKey === bKey;
+      }
+
+      return true;
+    };
+
+    // Update attributes
+    const updateAttributes = (el, oldAttrs = {}, newAttrs = {}) => {
+      // Remove old attributes
+      Object.keys(oldAttrs).forEach(key => {
+        if (!(key in newAttrs)) {
+          el.removeAttribute(key);
+        }
+      });
+
+      // Add/update new attributes
+      Object.keys(newAttrs).forEach(key => {
+        const newValue = newAttrs[key];
+        const oldValue = oldAttrs[key];
+
+        if (newValue !== oldValue) {
+          if (key === 'value' && el.tagName === 'INPUT') {
+            // Special handling for input values to preserve cursor position
+            if (document.activeElement !== el) {
+              el.value = newValue;
+            }
+          } else if (key === 'checked') {
+            el.checked = newValue === 'true' || newValue === 'checked';
+          } else {
+            el.setAttribute(key, newValue);
+          }
+        }
+      });
+    };
+
+    // Diff and patch children
+    const patchChildren = (parent, oldChildren = [], newChildren = []) => {
+      const oldLen = oldChildren.length;
+      const newLen = newChildren.length;
+      const maxLen = Math.max(oldLen, newLen);
+
+      for (let i = 0; i < maxLen; i++) {
+        const oldVNode = oldChildren[i];
+        const newVNode = newChildren[i];
+        const childEl = parent.childNodes[i];
+
+        if (!newVNode) {
+          // Remove extra old nodes
+          if (childEl) {
+            parent.removeChild(childEl);
+          }
+        } else if (!oldVNode) {
+          // Add new nodes
+          const newEl = createElementFromVNode(newVNode);
+          parent.appendChild(newEl);
+        } else {
+          // Patch existing nodes
+          patch(childEl, oldVNode, newVNode);
+        }
+      }
+    };
+
+    // Create a real DOM element from a VNode
+    const createElementFromVNode = (vnode) => {
+      if (vnode.type === 'text') {
+        return document.createTextNode(vnode.value);
+      }
+
+      if (vnode.type === 'fragment') {
+        const fragment = document.createDocumentFragment();
+        vnode.children.forEach(child => {
+          fragment.appendChild(createElementFromVNode(child));
+        });
+        return fragment;
+      }
+
+      const el = document.createElement(vnode.tag);
+
+      // Set attributes
+      Object.keys(vnode.attrs || {}).forEach(key => {
+        if (key === 'checked') {
+          el.checked = vnode.attrs[key] === 'true' || vnode.attrs[key] === 'checked';
+        } else {
+          el.setAttribute(key, vnode.attrs[key]);
+        }
+      });
+
+      // Add children
+      (vnode.children || []).forEach(child => {
+        el.appendChild(createElementFromVNode(child));
+      });
+
+      return el;
+    };
+
+    // Main patch function - diff and update DOM
+    const patch = (el, oldVNode, newVNode) => {
+      // Replace with new element if not same type
+      if (!sameVNode(oldVNode, newVNode)) {
+        const newEl = createElementFromVNode(newVNode);
+        el.parentNode?.replaceChild(newEl, el);
+        return;
+      }
+
+      // Update text nodes
+      if (newVNode.type === 'text') {
+        if (oldVNode.value !== newVNode.value) {
+          el.textContent = newVNode.value;
+        }
+        return;
+      }
+
+      // Update attributes
+      if (newVNode.type === 'element') {
+        updateAttributes(el, oldVNode.attrs, newVNode.attrs);
+
+        // Patch children
+        patchChildren(el, oldVNode.children, newVNode.children);
+      }
+    };
+
+    // Main diff function
+    const diff = (container, oldHTML, newHTML) => {
+      try {
+        // Parse both HTML strings to VNode trees
+        const oldVNode = oldHTML ? parseHTML(oldHTML) : null;
+        const newVNode = parseHTML(newHTML);
+
+        // If no old content, just set innerHTML
+        if (!oldVNode || container.childNodes.length === 0) {
+          container.innerHTML = newHTML;
+          return;
+        }
+
+        // Create VNode from current DOM
+        const currentVNode = createVNode(container.firstChild);
+
+        // Patch the DOM
+        if (container.childNodes.length > 0) {
+          patch(container.firstChild, currentVNode, newVNode);
+        } else {
+          container.appendChild(createElementFromVNode(newVNode));
+        }
+      } catch (error) {
+        console.error('DOM Diff error:', error);
+        // Fallback to innerHTML on error
+        container.innerHTML = newHTML;
+      }
+    };
+
+    return {
+      diff,
+      parseHTML,
+      createVNode,
+      patch
+    };
+  })();
+
+  // ============================================================================
   // APP CREATION
   // ============================================================================
 
   const createApp = (config = {}) => {
     const container = config.container || "#app";
+    const useDiff = config.useDiff !== false; // Default to true
     const element = typeof container === "string"
       ? document.querySelector(container)
       : container;
@@ -652,6 +872,9 @@
         `Make sure the element exists in the DOM before calling createApp()`
       );
     }
+
+    // Track last rendered HTML for diffing
+    let lastHTML = '';
 
     const app = {
       // Router methods
@@ -691,12 +914,27 @@
 
         try {
           const compiledHTML = TemplateEngine.compile(data, template);
-          element.innerHTML = compiledHTML;
+
+          if (useDiff) {
+            // Use intelligent DOM diffing
+            DOMDiff.diff(element, lastHTML, compiledHTML);
+            lastHTML = compiledHTML;
+          } else {
+            // Fallback to innerHTML (faster but loses focus)
+            element.innerHTML = compiledHTML;
+          }
         } catch (error) {
           console.error('Render error:', error);
-          element.innerHTML = `<div style="color: red; padding: 20px;">
+          const errorHTML = `<div style="color: red; padding: 20px;">
             <strong>Render Error:</strong> ${TemplateEngine.escapeHTML(error.message)}
           </div>`;
+
+          if (useDiff) {
+            DOMDiff.diff(element, lastHTML, errorHTML);
+            lastHTML = errorHTML;
+          } else {
+            element.innerHTML = errorHTML;
+          }
         }
 
         Lifecycle.promoteAndLoad();
@@ -765,6 +1003,7 @@
     State,
     Lifecycle,
     TemplateEngine,
+    DOMDiff,
     helpers,
     pipe,
     compose,
